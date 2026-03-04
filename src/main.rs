@@ -5,6 +5,7 @@ mod tui;
 use clap::{Parser, Subcommand};
 use core::commands;
 use core::config::ProviderConfigs;
+use core::launcher::OmarchyLauncher;
 use core::models::AnimeList;
 
 #[derive(Parser)]
@@ -55,32 +56,61 @@ fn run_cli() -> Result<(), String> {
 
     let mut anime_list = AnimeList::load();
     let mut providers = ProviderConfigs::load();
+    let launcher = OmarchyLauncher;
 
     if let Some(command) = cli.command {
         match command {
             Commands::Add { url, name } => {
-                commands::add_anime(&url, name.as_deref(), &mut anime_list, &mut providers)?;
+                let anime =
+                    commands::add_anime(&url, name.as_deref(), &mut anime_list, &mut providers)?;
+                println!("Added: {}", anime.name);
             }
             Commands::List {
                 fields,
                 sort,
                 reverse,
             } => {
-                let field_list: Vec<&str> = fields.split(',').map(|s| s.trim()).collect();
-                let result = commands::list_anime(&anime_list, &field_list, &sort, reverse)?;
-                println!("{}", result);
+                let anime_vec = commands::list_anime(&anime_list, &sort, reverse)?;
+
+                if anime_vec.is_empty() {
+                    println!("No anime in list");
+                } else {
+                    let field_list: Vec<&str> = fields.split(',').map(|s| s.trim()).collect();
+
+                    for a in &anime_vec {
+                        let mut parts = Vec::new();
+                        for field in &field_list {
+                            match *field {
+                                "name" => parts.push(a.name.clone()),
+                                "uuid" => parts.push(a.id.clone()),
+                                "provider" => parts.push(a.provider.clone()),
+                                "date" => parts.push(a.added.format("%Y-%m-%d").to_string()),
+                                _ => {}
+                            }
+                        }
+                        println!("{}", parts.join(" | "));
+                    }
+                }
             }
             Commands::Edit { id, name } => {
-                commands::edit_anime(&id, &name, &mut anime_list)?;
+                let anime = commands::edit_anime(&id, &name, &mut anime_list)?;
+                println!("Updated: {}", anime.name);
             }
             Commands::Delete { id } => {
-                commands::delete_anime(&id, &mut anime_list)?;
+                let anime = commands::delete_anime(&id, &mut anime_list)?;
+                println!("Deleted: {}", anime.name);
             }
             Commands::Watch { id } => {
-                commands::watch_anime(&id, &anime_list)?;
+                let anime = commands::watch_anime(&id, &anime_list, &launcher)?;
+                println!("Launched: {}", anime.name);
             }
             Commands::Sort { field, reverse } => {
-                commands::set_sort(&field, reverse, &mut anime_list)?;
+                let _sort = commands::set_sort(&field, reverse, &mut anime_list)?;
+                println!(
+                    "Sort set to {} ({})",
+                    field,
+                    if reverse { "reverse" } else { "normal" }
+                );
             }
         }
 

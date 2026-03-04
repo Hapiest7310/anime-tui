@@ -69,7 +69,7 @@ impl AnimeList {
             .join("anime.json")
     }
 
-    pub fn add(&mut self, name: String, url: String, provider: String) {
+    pub fn add(&mut self, name: String, url: String, provider: String) -> Anime {
         let anime = Anime {
             id: Uuid::new_v4().to_string(),
             name,
@@ -77,14 +77,18 @@ impl AnimeList {
             provider,
             added: Utc::now(),
         };
-        self.anime.push(anime);
+        self.anime.push(anime.clone());
         self.sort();
+        anime
     }
 
-    pub fn remove(&mut self, id: &str) -> bool {
-        let len_before = self.anime.len();
-        self.anime.retain(|a| a.id != id);
-        self.anime.len() < len_before
+    pub fn remove(&mut self, id: &str) -> Anime {
+        let index = self
+            .anime
+            .iter()
+            .position(|a| a.id == id)
+            .expect("Anime not found");
+        self.anime.remove(index)
     }
 
     pub fn sort(&mut self) {

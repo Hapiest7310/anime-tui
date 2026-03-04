@@ -1,13 +1,13 @@
 use crate::core::config::ProviderConfigs;
-use crate::core::models::{AnimeList, SortBy};
-use std::process::Command;
+use crate::core::launcher::Launcher;
+use crate::core::models::{Anime, AnimeList, SortBy};
 
 pub fn add_anime(
     url: &str,
     name: Option<&str>,
     anime_list: &mut AnimeList,
     providers: &mut ProviderConfigs,
-) -> Result<String, String> {
+) -> Result<Anime, String> {
     if url.is_empty() {
         return Err("URL cannot be empty".to_string());
     }
@@ -17,19 +17,18 @@ pub fn add_anime(
         .map(|s| s.to_string())
         .unwrap_or_else(|| config.extract_name(url));
 
-    anime_list.add(anime_name, url.to_string(), provider_name);
+    let anime = anime_list.add(anime_name, url.to_string(), provider_name);
     providers.save().map_err(|e| e.to_string())?;
     anime_list.save().map_err(|e| e.to_string())?;
 
-    Ok("Anime added successfully".to_string())
+    Ok(anime)
 }
 
 pub fn list_anime(
     anime_list: &AnimeList,
-    fields: &[&str],
     sort_by: &str,
     reverse: bool,
-) -> Result<String, String> {
+) -> Result<Vec<Anime>, String> {
     let mut anime = anime_list.anime.clone();
 
     let sort_field = match sort_by {
@@ -62,50 +61,31 @@ pub fn list_anime(
         }
     }
 
-    if anime.is_empty() {
-        return Ok("No anime in list".to_string());
-    }
-
-    let mut lines = Vec::new();
-    for a in &anime {
-        let mut parts = Vec::new();
-        for field in fields {
-            match *field {
-                "name" => parts.push(a.name.clone()),
-                "uuid" => parts.push(a.id.clone()),
-                "provider" => parts.push(a.provider.clone()),
-                "date" => parts.push(a.added.format("%Y-%m-%d").to_string()),
-                _ => {}
-            }
-        }
-        lines.push(parts.join(" | "));
-    }
-
-    Ok(lines.join("\n"))
+    Ok(anime)
 }
 
-pub fn edit_anime(id: &str, new_name: &str, anime_list: &mut AnimeList) -> Result<String, String> {
+pub fn edit_anime(id: &str, new_name: &str, anime_list: &mut AnimeList) -> Result<Anime, String> {
     if new_name.is_empty() {
         return Err("Name cannot be empty".to_string());
     }
 
-    let found = anime_list
+    let found_index = anime_list
         .anime
-        .iter_mut()
-        .find(|a| a.id == id || a.name.to_lowercase() == id.to_lowercase());
+        .iter()
+        .position(|a| a.id == id || a.name.to_lowercase() == id.to_lowercase());
 
-    match found {
-        Some(anime) => {
-            anime.name = new_name.to_string();
+    match found_index {
+        Some(idx) => {
+            anime_list.anime[idx].name = new_name.to_string();
             anime_list.sort();
             anime_list.save().map_err(|e| e.to_string())?;
-            Ok("Anime updated successfully".to_string())
+            Ok(anime_list.anime[idx].clone())
         }
         None => Err(format!("Anime not found: {}", id)),
     }
 }
 
-pub fn delete_anime(id: &str, anime_list: &mut AnimeList) -> Result<String, String> {
+pub fn delete_anime(id: &str, anime_list: &mut AnimeList) -> Result<Anime, String> {
     let anime_id = anime_list
         .anime
         .iter()
@@ -114,15 +94,19 @@ pub fn delete_anime(id: &str, anime_list: &mut AnimeList) -> Result<String, Stri
 
     match anime_id {
         Some(id) => {
-            anime_list.remove(&id);
+            let deleted = anime_list.remove(&id);
             anime_list.save().map_err(|e| e.to_string())?;
-            Ok("Anime deleted successfully".to_string())
+            Ok(deleted)
         }
         None => Err(format!("Anime not found: {}", id)),
     }
 }
 
-pub fn watch_anime(id: &str, anime_list: &AnimeList) -> Result<String, String> {
+pub fn watch_anime(
+    id: &str,
+    anime_list: &AnimeList,
+    launcher: &dyn Launcher,
+) -> Result<Anime, String> {
     let found = anime_list
         .anime
         .iter()
@@ -130,8 +114,8 @@ pub fn watch_anime(id: &str, anime_list: &AnimeList) -> Result<String, String> {
 
     match found {
         Some(anime) => {
-            launch_webapp(&anime.url);
-            Ok(format!("Launched: {}", anime.name))
+            launcher.launch(&anime.url).map_err(|e| e.to_string())?;
+            Ok(anime.clone())
         }
         None => Err(format!("Anime not found: {}", id)),
     }
@@ -141,7 +125,7 @@ pub fn set_sort(
     sort_by: &str,
     reverse: bool,
     anime_list: &mut AnimeList,
-) -> Result<String, String> {
+) -> Result<SortBy, String> {
     let sort = match sort_by {
         "date" => SortBy::Date,
         "provider" => SortBy::Provider,
@@ -158,13 +142,5 @@ pub fn set_sort(
         };
     }
     anime_list.save().map_err(|e| e.to_string())?;
-    Ok(format!(
-        "Sort set to {} ({})",
-        sort_by,
-        if reverse { "reverse" } else { "normal" }
-    ))
-}
-
-fn launch_webapp(url: &str) {
-    let _ = Command::new("omarchy-launch-webapp").arg(url).spawn();
+    Ok(anime_list.sort_by)
 }
