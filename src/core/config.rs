@@ -140,10 +140,12 @@ impl ProviderConfigs {
         (provider_name, config)
     }
 
+    #[allow(dead_code)]
     pub fn get_config(&self, provider: &str) -> Option<&ProviderConfig> {
         self.providers.get(provider)
     }
 
+    #[allow(dead_code)]
     pub fn update_config(
         &mut self,
         provider: &str,

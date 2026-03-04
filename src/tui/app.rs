@@ -27,6 +27,7 @@ pub struct App {
     pub table_state: TableState,
     pub input: String,
     pub message: Option<String>,
+    #[allow(dead_code)]
     pub providers: Vec<String>,
 }
 

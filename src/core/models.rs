@@ -30,6 +30,7 @@ pub enum SortBy {
 }
 
 impl SortBy {
+    #[allow(dead_code)]
     pub fn next(&self) -> Self {
         match self {
             SortBy::Name => SortBy::Date,
@@ -96,6 +97,7 @@ impl AnimeList {
         }
     }
 
+    #[allow(dead_code)]
     pub fn toggle_sort(&mut self) {
         self.sort_by = self.sort_by.next();
         self.sort();
