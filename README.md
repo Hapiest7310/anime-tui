@@ -1,218 +1,120 @@
-# anime-term-tool
+# anime-tui
 
-A backend-agnostic anime list manager with both CLI and TUI interfaces.
+A backend-agnostic anime list manager with CLI and TUI (Terminal UI) interfaces.
 
-## Overview
+## What is it?
 
-The project is designed with a **plugin architecture** where the core business logic is separated from the interface (CLI/TUI). This allows:
+**anime-tui** is a lightweight, command-line tool for managing your anime watchlist. It supports:
 
-- **Backend agnostic**: Core logic knows nothing about how it's accessed
-- **Multiple interfaces**: CLI for scripting, TUI for interactive use
-- **Minimal dependencies**: CLI-only build has zero TUI dependencies
-- **Plugin system**: Future interfaces (web, API) can be added as plugins
+- **CLI mode** - Add, list, edit, and delete anime from the command line
+- **TUI mode** - Interactive terminal UI with keyboard navigation
+- **Multiple providers** - Add anime from any URL (Crunchyroll, MyAnimeList, etc.)
+- **Auto-detection** - Anime names are extracted automatically from URLs
+- **Multi-select delete** - Delete multiple anime at once with confirmation
+- **Custom columns** - Choose which fields to display (name, date, provider, URL, etc.)
+- **Local storage** - All data stored in `~/.local/share/anime/` as JSON
+- **No cloud** - Works offline, respects your privacy
 
-## Current Status
-
-- **CLI**: Fully functional
-- **TUI**: Not implemented yet
-- **Plugin System**: Designed but not implemented
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Entry Point                          │
-│                    (main.rs)                            │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-         ┌──────────────┴──────────────┐
-         ▼                              ▼
-┌─────────────────────┐    ┌─────────────────────┐
-│       CLI Mode       │    │      TUI Mode       │
-│    (clap/args)      │    │    (plugin)         │
-│                     │    │  [not implemented] │
-└─────────┬───────────┘    └─────────┬───────────┘
-          │                           │
-          └─────────────┬─────────────┘
-                        ┌──────────────────── ▼
-           ───┐
-            │     Core Library       │
-            │   (src/core/)         │
-            ├───────────────────────┤
-            │ - commands.rs         │
-            │ - config.rs           │
-            │ - models.rs           │
-            └───────────────────────┘
-                        │
-                        ▼
-            ┌───────────────────────┐
-            │      Data Layer        │
-            │  (JSON files)          │
-            └───────────────────────┘
-```
-
-## Project Structure
-
-```
-anime-term-tool/
-├── Cargo.toml
-├── README.md
-└── src/
-    ├── main.rs           # Entry point, CLI parsing, dispatch
-    └── core/
-        ├── mod.rs       # Module declarations
-        ├── commands.rs  # Business logic (add, list, edit, delete, watch, sort)
-        ├── config.rs    # ProviderConfig, ProviderConfigs
-        └── models.rs    # Anime, AnimeList, SortBy
-```
-
-## Data Structures
-
-### Anime
-
-```rust
-pub struct Anime {
-    pub id: String,           // UUID v4
-    pub name: String,         // Friendly name (auto-generated or custom)
-    pub url: String,           // Provider URL
-    pub provider: String,     // Provider name (extracted from domain)
-    pub added: DateTime<Utc>,  // Timestamp
-}
-```
-
-### AnimeList
-
-```rust
-pub struct AnimeList {
-    pub anime: Vec<Anime>,
-    pub sort_by: SortBy,  // Name, Date, or Provider
-}
-```
-
-### SortBy
-
-```rust
-pub enum SortBy {
-    Name,
-    Date,      // Default, newest first
-    Provider,
-}
-```
-
-### ProviderConfig
-
-```rust
-pub struct ProviderConfig {
-    pub domain: String,
-    pub strip_pattern: String,      // Regex to remove from URL (e.g., "[0-9]+-")
-    pub display_format: DisplayFormat,  // Hyphen, Slash, CamelCase, Original
-}
-```
-
-## CLI Usage
+## Quick Start
 
 ```bash
-# Add anime from URL
-anime add "https://jutsuz.org/123-naruto"
-anime add "https://jutsuz.org/456-naruto" -n "Custom Name"
+# Add anime
+anime add "https://crunchyroll.com/naruto"
+anime add "https://myanimelist.net/anime/1" -n "Cowboy Bebop"
 
-# List anime
-anime list                                    # name only, sorted alphabetically
-anime list -f name,date,provider,uuid        # all fields
-anime list -s date                            # sort by date
-anime list -s date --reverse                  # sort by date, oldest first
+# List your anime
+anime list
+anime list -f name,provider,date
 
-# Edit/Delete
-anime edit "naruto" "New Name"
+# Launch interactive TUI
+anime --tui
+
+# Edit and delete
+anime edit "naruto" "Naruto Shippuden"
 anime delete "naruto"
 
-# Watch (opens URL in browser)
-anime watch "naruto"
-
-# Set default sort preference
-anime sort date
-anime sort name --reverse
+# Open anime URL in browser
+anime watch "attack-on-titan"
 ```
 
-### List Command Options
+## TUI Keyboard Controls
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-f, --fields` | Fields to display (name, date, provider, uuid) | name |
-| `-s, --sort` | Sort field (name, date, provider) | name |
-| `--reverse` | Reverse sort order | false |
+### List View
+- `↑/↓` or `k/j` - Navigate
+- `a` - Add anime
+- `e` - Edit selected
+- `d` - Delete selected
+- `Shift+D` - Multi-select delete
+- `s` - Sort by name/date/provider
+- `w` - Watch (open URL)
+- `f` - Select which fields to display
+- `q` - Quit
 
-## Configuration
+### Delete Mode (Shift+D)
+- `Space` - Select/deselect
+- `Enter` - Confirm deletion
+- `Esc` - Cancel
 
-Data is stored in `~/.local/share/anime/`:
+### Field Selection
+- `↑/↓` - Navigate fields
+- `Space/Enter` - Toggle visibility
+- `Esc` - Done
 
-```
-~/.local/share/anime/
-├── anime.json       # Anime list
-└── providers.json   # Provider configurations
-```
-
-## Dependencies
-
-### CLI-Only Build
-- serde, serde_json
-- chrono
-- dirs
-- regex
-- uuid
-- clap
-
-### Full Build (with TUI)
-- All of the above plus:
-- ratatui
-- crossterm
-- atty
-
-## Future Plans
-
-### Phase 1: Core & CLI (Current)
-- [x] Core business logic
-- [x] CLI interface
-- [x] Data persistence
-
-### Phase 2: TUI Plugin
-- [ ] Implement TUI using core commands
-- [ ] Plugin trait in core
-- [ ] Runtime detection of terminal
-
-### Phase 3: Plugin System
-- [ ] Formalize Plugin trait
-- [ ] Dynamic plugin loading (optional)
-- [ ] Multiple interface support
-
-### Phase 4: Packaging
-- [ ] AUR package for yay/pacman
-- [ ] Release builds
-
-## Package Info (for AUR)
-
-- **Package Name**: anime-term-tool
-- **Version**: 0.1.0
-- **License**: MIT
-- **Architecture**: x86_64
-- **Dependencies**: None (static binary## Building)
-
-
+## Building
 
 ```bash
 # Debug build
 cargo build
 
-# Release build (optimized)
+# Release build
 cargo build --release
 
-# Install locally
+# CLI only (no TUI dependencies)
+cargo build --no-default-features
+```
+
+## Installation
+
+```bash
 cargo install --path .
 ```
 
-## Design Decisions
+## Requirements
 
-1. **Friendly Names**: Auto-generated from URL (stripped pattern), editable by user
-2. **Sort Default**: `-s name` alphabetically (CLI), `date` newest first (persisted preference)
-3. **Backend Agnostic**: Core has no dependencies on CLI/TUI - can be used as a library
-4. **Plugin Architecture**: TUI is a plugin, not hardcoded
+- Rust 1.56+ (2021 edition)
+- `omarchy-launch-webapp` (for opening URLs in browser)
+
+## Data Storage
+
+All data is stored locally in `~/.local/share/anime/`:
+
+- `anime.json` - Your anime list
+- `providers.json` - Provider-specific configurations
+
+You can edit these files directly if needed.
+
+## Features
+
+- ✅ Add anime from any provider URL
+- ✅ Auto-extract anime names from URLs
+- ✅ List with filtering and sorting
+- ✅ Edit anime names
+- ✅ Delete anime (single or multi-select)
+- ✅ Open anime URLs in browser
+- ✅ Interactive TUI with theme auto-detection
+- ✅ Custom column display
+- ✅ Local-first, no cloud sync
+
+## Architecture
+
+The app separates concerns into clean layers:
+
+- **Core logic** (`src/core/`) - Backend-agnostic business logic
+- **CLI** (`src/main.rs`) - Command-line interface
+- **TUI** (`src/tui/`) - Terminal UI (optional feature)
+
+This means the core can be reused for web APIs, desktop apps, or other interfaces without modification.
+
+## License
+
+MIT
