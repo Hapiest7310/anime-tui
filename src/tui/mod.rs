@@ -2,6 +2,8 @@
 mod app;
 #[cfg(feature = "tui")]
 mod handlers;
+#[cfg(feature = "tui")]
+pub mod theme;
 
 #[cfg(feature = "tui")]
 use crate::core::{config::ProviderConfigs, models::AnimeList};

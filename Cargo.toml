@@ -5,7 +5,7 @@ edition = "2021"
 
 [features]
 default = ["tui"]
-tui = ["ratatui", "crossterm"]
+tui = ["ratatui", "crossterm", "terminal-colorsaurus"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -17,6 +17,7 @@ uuid = { version = "1", features = ["v4"] }
 clap = { version = "4", features = ["derive"] }
 ratatui = { version = "0.30", optional = true }
 crossterm = { version = "0.28", optional = true }
+terminal-colorsaurus = { version = "1.0", optional = true, features = ["rgb"] }
 
 [profile.release]
 strip = true

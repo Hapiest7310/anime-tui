@@ -1,9 +1,10 @@
 #[cfg(feature = "tui")]
+use super::theme::Theme;
+#[cfg(feature = "tui")]
 use crate::core::models::SortBy;
 #[cfg(feature = "tui")]
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Row, Table, TableState},
     Frame,
@@ -29,6 +30,7 @@ pub struct App {
     pub message: Option<String>,
     #[allow(dead_code)]
     pub providers: Vec<String>,
+    pub theme: Theme,
 }
 
 #[cfg(feature = "tui")]
@@ -46,6 +48,7 @@ impl App {
             input: String::new(),
             message: None,
             providers,
+            theme: Theme::detect(),
         }
     }
 
@@ -112,13 +115,9 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
         View::Watch => " Watch ",
     };
 
-    let style = Style::default()
-        .fg(Color::Cyan)
-        .add_modifier(Modifier::BOLD);
-
     let block = Block::default()
         .title(title)
-        .style(style)
+        .style(app.theme.header())
         .borders(Borders::ALL);
 
     frame.render_widget(block, area);
@@ -140,7 +139,7 @@ fn render_list(frame: &mut Frame, app: &App, area: Rect) {
     if app.list.is_empty() {
         let text = Paragraph::new("No anime yet. Press 'a' to add one.")
             .centered()
-            .style(Style::default().fg(Color::DarkGray));
+            .style(app.theme.hint_text());
         frame.render_widget(text, area);
         return;
     }
@@ -163,18 +162,8 @@ fn render_list(frame: &mut Frame, app: &App, area: Rect) {
         ],
     )
     .block(Block::default().borders(Borders::NONE))
-    .header(
-        Row::new(vec!["Name", "Provider", "Added"]).style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-    )
-    .row_highlight_style(
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::REVERSED),
-    );
+    .header(Row::new(vec!["Name", "Provider", "Added"]).style(app.theme.header()))
+    .row_highlight_style(app.theme.selected());
 
     let mut state = app.table_state.clone();
     frame.render_stateful_widget(table, area, &mut state);
@@ -189,7 +178,7 @@ fn render_add(frame: &mut Frame, app: &App, area: Rect) {
         Line::from(""),
         Line::from(Span::styled(
             "Press Enter to confirm, Esc to cancel",
-            Style::default().fg(Color::DarkGray),
+            app.theme.hint_text(),
         )),
     ];
 
@@ -214,7 +203,7 @@ fn render_edit(frame: &mut Frame, app: &App, area: Rect) {
         Line::from(""),
         Line::from(Span::styled(
             "Press Enter to confirm, Esc to cancel",
-            Style::default().fg(Color::DarkGray),
+            app.theme.hint_text(),
         )),
     ];
 
@@ -240,11 +229,7 @@ fn render_sort(frame: &mut Frame, app: &App, area: Rect) {
 
     let list = List::new(items)
         .block(Block::default().title(" Sort By ").borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::REVERSED),
-        );
+        .highlight_style(app.theme.selected());
 
     frame.render_stateful_widget(list, area, &mut list_state);
 }
@@ -259,14 +244,14 @@ fn render_watch(frame: &mut Frame, app: &App, area: Rect) {
         Line::from(""),
         Line::from(Span::styled(
             anime.map(|a| a.name.as_str()).unwrap_or("None"),
-            Style::default().fg(Color::Cyan),
+            app.theme.emphasized(),
         )),
         Line::from(""),
         Line::from(Span::raw(url)),
         Line::from(""),
         Line::from(Span::styled(
             "Press Enter to launch, Esc to cancel",
-            Style::default().fg(Color::DarkGray),
+            app.theme.hint_text(),
         )),
     ];
 
@@ -296,9 +281,9 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let left_text = if let Some(ref msg) = app.message {
-        Span::styled(msg.clone(), Style::default().fg(Color::Green))
+        Span::styled(msg.clone(), app.theme.success_message())
     } else {
-        Span::styled(help_text, Style::default().fg(Color::DarkGray))
+        Span::styled(help_text, app.theme.hint_text())
     };
 
     let left_block = Paragraph::new(left_text).block(Block::default());
@@ -307,7 +292,7 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     let sort_text = format!(" Sort: {:?} ", app.sort_by);
     let right_block = Block::default()
         .title(sort_text.as_str())
-        .style(Style::default().fg(Color::Cyan))
+        .style(app.theme.header())
         .borders(Borders::ALL);
     frame.render_widget(right_block, right);
 }
